@@ -72,6 +72,27 @@ class LeapInterface(Leap.Listener):
         self.fingerNames = ['thumb', 'index', 'middle', 'ring', 'pinky']
         for fingerName in self.fingerNames:
             setattr(self, fingerName, LeapFinger())
+
+        self.lhand_direction = [0,0,0]
+        self.lhand_normal    = [0,0,0]
+        self.lhand_palm_pos  = [0,0,0]
+        self.lhand_pitch     = 0.0
+        self.lhand_yaw       = 0.0
+        self.lhand_roll      = 0.0
+        self.lfingerNames = ['lthumb', 'lindex', 'lmiddle', 'lring', 'lpinky']
+        for fingerName in self.lfingerNames:
+            setattr(self, fingerName, LeapFinger())
+
+        self.rhand_direction = [0,0,0]
+        self.rhand_normal    = [0,0,0]
+        self.rhand_palm_pos  = [0,0,0]
+        self.rhand_pitch     = 0.0
+        self.rhand_yaw       = 0.0
+        self.rhand_roll      = 0.0
+        self.rfingerNames = ['rthumb', 'rindex', 'rmiddle', 'rring', 'rpinky']
+        for fingerName in self.rfingerNames:
+            setattr(self, fingerName, LeapFinger())
+
         print "Initialized Leap Motion Device"
 
     def on_connect(self, controller):
@@ -107,12 +128,11 @@ class LeapInterface(Leap.Listener):
 
             for hand in frame.hands:
 
-                if hand.is_right:
+                if hand.is_right and there_is_right_hand is False:
                     there_is_right_hand=True
                     self.right_hand=hand
-                elif hand.is_left:
+                elif hand.is_left and there_is_left_hand is False:
                     there_is_left_hand=True
-
                     self.left_hand=hand
 
             if not there_is_right_hand:
@@ -121,16 +141,38 @@ class LeapInterface(Leap.Listener):
             if not there_is_left_hand:
                 self.left_hand=False
 
-            self.hand = frame.hands[0] #old way
+            if not there_is_right_hand and not there_is_left_hand:
+                self.hand=False
+            else:
+                self.hand=frame.hands[0]
 
-            # Check if the hand has any fingers
-            fingers = self.hand.fingers
-            if not fingers.is_empty:
-                for fingerName in self.fingerNames:
-                    #finger = fingers.finger_type(Leap.Finger.TYPE_THUMB)[0]
-                    #self.thumb.importFinger(finger)
-                    finger = fingers.finger_type(getattr(Leap.Finger, 'TYPE_%s' % fingerName.upper()))[0]
-                    getattr(self, fingerName).importFinger(finger)
+            if self.hand is not False:
+                fingers = self.hand.fingers
+                # Check if the hand has any fingers
+                if not fingers.is_empty:
+                    for fingerName in self.fingerNames:
+                        #finger = fingers.finger_type(Leap.Finger.TYPE_THUMB)[0]
+                        #self.thumb.importFinger(finger)
+                        finger = fingers.finger_type(getattr(Leap.Finger, 'TYPE_%s' % fingerName.upper()))[0]
+                        getattr(self, fingerName).importFinger(finger)
+
+            if self.left_hand is not False:
+                fingers = self.left_hand.fingers
+                if not fingers.is_empty:
+                    for fingerName in self.lfingerNames:
+                        #finger = fingers.finger_type(Leap.Finger.TYPE_THUMB)[0]
+                        #self.thumb.importFinger(finger)
+                        finger = fingers.finger_type(getattr(Leap.Finger, 'TYPE_%s' % fingerName[1:].upper()))[0]
+                        getattr(self, fingerName).importFinger(finger)
+
+            if self.right_hand is not False:
+                fingers = self.right_hand.fingers
+                if not fingers.is_empty:
+                    for fingerName in self.rfingerNames:
+                        # finger = fingers.finger_type(Leap.Finger.TYPE_THUMB)[0]
+                        # self.thumb.importFinger(finger)
+                        finger = fingers.finger_type(getattr(Leap.Finger, 'TYPE_%s' % fingerName[1:].upper()))[0]
+                        getattr(self, fingerName).importFinger(finger)
 
             # Get the hand's sphere radius and palm position
             # print "Hand sphere radius: %f mm, palm position: %s" % (self.hand.sphere_radius, hand.palm_position)
@@ -152,6 +194,42 @@ class LeapInterface(Leap.Listener):
             self.hand_pitch        = direction.pitch * Leap.RAD_TO_DEG
             self.hand_yaw          = normal.yaw * Leap.RAD_TO_DEG
             self.hand_roll         = direction.roll * Leap.RAD_TO_DEG
+
+            if self.left_hand is not False:
+                lnormal = self.left_hand.palm_normal
+                ldirection = self.left_hand.direction
+                lpos = self.left_hand.palm_position
+
+                self.lhand_direction[0] = ldirection.x
+                self.lhand_direction[1] = ldirection.y
+                self.lhand_direction[2] = ldirection.z
+                self.lhand_normal[0]    = lnormal.x
+                self.lhand_normal[1]    = lnormal.y
+                self.lhand_normal[2]    = lnormal.z
+                self.lhand_palm_pos[0]  = lpos.x
+                self.lhand_palm_pos[1]  = lpos.y
+                self.lhand_palm_pos[2]  = lpos.z
+                self.lhand_pitch        = ldirection.pitch * Leap.RAD_TO_DEG
+                self.lhand_yaw          = lnormal.yaw * Leap.RAD_TO_DEG
+                self.lhand_roll         = ldirection.roll * Leap.RAD_TO_DEG
+
+            if self.right_hand is not False:
+                rnormal = self.right_hand.palm_normal
+                rdirection = self.right_hand.direction
+                rpos = self.right_hand.palm_position
+
+                self.rhand_direction[0] = rdirection.x
+                self.rhand_direction[1] = rdirection.y
+                self.rhand_direction[2] = rdirection.z
+                self.rhand_normal[0]    = rnormal.x
+                self.rhand_normal[1]    = rnormal.y
+                self.rhand_normal[2]    = rnormal.z
+                self.rhand_palm_pos[0]  = rpos.x
+                self.rhand_palm_pos[1]  = rpos.y
+                self.rhand_palm_pos[2]  = rpos.z
+                self.rhand_pitch        = rdirection.pitch * Leap.RAD_TO_DEG
+                self.rhand_yaw          = rnormal.yaw * Leap.RAD_TO_DEG
+                self.rhand_roll         = rdirection.roll * Leap.RAD_TO_DEG
 
             # Calculate the hand's pitch, roll, and yaw angles
             print "Hand pitch: %f degrees, roll: %f degrees, yaw: %f degrees" % (self.hand_pitch, self.hand_roll, self.hand_yaw)
@@ -213,27 +291,78 @@ class LeapInterface(Leap.Listener):
             return "STATE_INVALID"
     '''
 
+
+    def get_hand_visible(self):
+        return self.hand is not False
+
+    def get_left_hand_visible(self):
+        return self.left_hand is not False
+
+    def get_right_hand_visible(self):
+        return self.right_hand is not False
+
     def get_hand_direction(self):
         return self.hand_direction
+
+    def get_left_hand_direction(self):
+        return self.lhand_direction
+
+    def get_right_hand_direction(self):
+        return self.rhand_direction
 
     def get_hand_normal(self):
         return self.hand_normal
 
+    def get_left_hand_normal(self):
+        return self.lhand_normal
+
+    def get_right_hand_normal(self):
+        return self.rhand_normal
+
     def get_hand_palmpos(self):
         return self.hand_palm_pos
+
+    def get_left_hand_palmpos(self):
+        return self.lhand_palm_pos
+
+    def get_right_hand_palmpos(self):
+        return self.rhand_palm_pos
 
     def get_hand_yaw(self):
         return self.hand_yaw
 
+    def get_left_hand_yaw(self):
+        return self.lhand_yaw
+
+    def get_right_hand_yaw(self):
+        return self.rhand_yaw
+
     def get_hand_pitch(self):
         return self.hand_pitch
+
+    def get_left_hand_pitch(self):
+        return self.lhand_pitch
+
+    def get_right_hand_pitch(self):
+        return self.rhand_pitch
 
     def get_hand_roll(self):
         return self.hand_roll
 
+    def get_left_hand_roll(self):
+        return self.lhand_roll
+
+    def get_right_hand_roll(self):
+        return self.rhand_roll
+
     def get_finger_point(self, fingerName, fingerPointName):
         return getattr(getattr(self, fingerName), fingerPointName)
 
+    def get_left_finger_point(self, fingerName, fingerPointName):
+        return getattr(getattr(self, "l"+fingerName), fingerPointName)
+
+    def get_right_finger_point(self, fingerName, fingerPointName):
+        return getattr(getattr(self, "r"+fingerName), fingerPointName)
 
 class Runner(threading.Thread):
 
@@ -247,26 +376,78 @@ class Runner(threading.Thread):
     def __del__(self):
         self.controller.remove_listener(self.listener)
 
+    def get_hand_visible(self):
+        return self.listener.get_hand_visible()
+
+    def get_left_hand_visible(self):
+        return self.listener.get_left_hand_visible()
+
+    def get_right_hand_visible(self):
+        return self.listener.get_right_hand_visible()
+
     def get_hand_direction(self):
         return self.listener.get_hand_direction()
+
+    def get_left_hand_direction(self):
+        return self.listener.get_left_hand_direction() ###
+
+    def get_right_hand_direction(self):
+        return self.listener.get_right_hand_direction() ###
 
     def get_hand_normal(self):
         return self.listener.get_hand_normal()
 
+    def get_left_hand_normal(self):
+        return self.listener.get_left_hand_normal() ###
+
+    def get_right_hand_normal(self):
+        return self.listener.get_right_hand_normal() ###
+
     def get_hand_palmpos(self):
         return self.listener.get_hand_palmpos()
+
+    def get_left_hand_palmpos(self):
+        return self.listener.get_left_hand_palmpos() ###
+
+    def get_right_hand_palmpos(self):
+        return self.listener.get_right_hand_palmpos() ###
+
 
     def get_hand_roll(self):
         return self.listener.get_hand_roll()
 
+    def get_left_hand_roll(self):
+        return self.listener.get_left_hand_roll() ###
+
+    def get_right_hand_roll(self):
+        return self.listener.get_right_hand_roll() ###
+
     def get_hand_pitch(self):
         return self.listener.get_hand_pitch()
+
+    def get_left_hand_pitch(self):
+        return self.listener.get_left_hand_pitch() ###
+
+    def get_right_hand_pitch(self):
+        return self.listener.get_right_hand_pitch() ###
 
     def get_hand_yaw(self):
         return self.listener.get_hand_yaw()
 
+    def get_left_hand_yaw(self):
+        return self.listener.get_left_hand_yaw() ###
+
+    def get_right_hand_yaw(self):
+        return self.listener.get_right_hand_yaw() ###
+
     def get_finger_point(self, fingerName, fingerPointName):
         return self.listener.get_finger_point(fingerName, fingerPointName)
+
+    def get_left_finger_point(self, fingerName, fingerPointName):
+        return self.listener.get_left_finger_point(fingerName, fingerPointName) ###
+
+    def get_right_finger_point(self, fingerName, fingerPointName):
+        return self.listener.get_right_finger_point(fingerName, fingerPointName) ###
 
     def run (self):
         while True:
