@@ -61,8 +61,8 @@ class LeapInterface(Leap.Listener):
         # These variables as probably not thread safe
         # TODO: Make thread safe ;)
         self.hand           = [0,0,0]
-        self.right_hand = False
-        self.left_hand = False
+        self.left_hand = [0,0,0]
+        self.right_hand = [0,0,0]
         self.hand_direction = [0,0,0]
         self.hand_normal    = [0,0,0]
         self.hand_palm_pos  = [0,0,0]
@@ -99,10 +99,10 @@ class LeapInterface(Leap.Listener):
         print "Connected to Leap Motion Controller"
 
         # Enable gestures
-        controller.enable_gesture(Leap.Gesture.TYPE_CIRCLE);
-        controller.enable_gesture(Leap.Gesture.TYPE_KEY_TAP);
-        controller.enable_gesture(Leap.Gesture.TYPE_SCREEN_TAP);
-        controller.enable_gesture(Leap.Gesture.TYPE_SWIPE);
+        controller.enable_gesture(Leap.Gesture.TYPE_CIRCLE)
+        controller.enable_gesture(Leap.Gesture.TYPE_KEY_TAP)
+        controller.enable_gesture(Leap.Gesture.TYPE_SCREEN_TAP)
+        controller.enable_gesture(Leap.Gesture.TYPE_SWIPE)
 
     def on_disconnect(self, controller):
         # Note: not dispatched when running in a debugger.
@@ -118,66 +118,58 @@ class LeapInterface(Leap.Listener):
         print "Frame id: %d, timestamp: %d, hands: %d, fingers: %d, tools: %d, gestures: %d" % (
               frame.id, frame.timestamp, len(frame.hands), len(frame.fingers), len(frame.tools), len(frame.gestures()))
 
-        if not frame.hands.is_empty: #recently changed in API
-            # Get the first hand
+        #we are seeking one left and one right hands
+        there_is_right_hand=False
+        there_is_left_hand=False
+        self.right_hand = False
+        self.left_hand = False
 
+        for currenthand in frame.hands:
+            if currenthand.is_right and there_is_right_hand is False:
+                there_is_right_hand=True
+                self.right_hand=currenthand
+            elif currenthand.is_left and there_is_left_hand is False:
+                there_is_left_hand=True
+                self.left_hand=currenthand
 
-            #we are seeking one left and one right hands
-            there_is_right_hand=False
-            there_is_left_hand=False
+        if not there_is_right_hand and not there_is_left_hand:
+            self.hand=False
+        else:
+            self.hand=frame.hands[0]
 
-            for hand in frame.hands:
+        if self.hand is not False:
+            fingers = self.hand.fingers
+            # Check if the hand has any fingers
+            if not fingers.is_empty:
+                for fingerName in self.fingerNames:
+                    #finger = fingers.finger_type(Leap.Finger.TYPE_THUMB)[0]
+                    #self.thumb.importFinger(finger)
+                    finger = fingers.finger_type(getattr(Leap.Finger, 'TYPE_%s' % fingerName.upper()))[0]
+                    getattr(self, fingerName).importFinger(finger)
 
-                if hand.is_right and there_is_right_hand is False:
-                    there_is_right_hand=True
-                    self.right_hand=hand
-                elif hand.is_left and there_is_left_hand is False:
-                    there_is_left_hand=True
-                    self.left_hand=hand
+        if self.left_hand is not False:
+            fingers = self.left_hand.fingers
+            if not fingers.is_empty:
+                for fingerName in self.lfingerNames:
+                    #finger = fingers.finger_type(Leap.Finger.TYPE_THUMB)[0]
+                    #self.thumb.importFinger(finger)
+                    finger = fingers.finger_type(getattr(Leap.Finger, 'TYPE_%s' % fingerName[1:].upper()))[0]
+                    getattr(self, fingerName).importFinger(finger)
 
-            if not there_is_right_hand:
-                self.right_hand=False
+        if self.right_hand is not False:
+            fingers = self.right_hand.fingers
+            if not fingers.is_empty:
+                for fingerName in self.rfingerNames:
+                    # finger = fingers.finger_type(Leap.Finger.TYPE_THUMB)[0]
+                    # self.thumb.importFinger(finger)
+                    finger = fingers.finger_type(getattr(Leap.Finger, 'TYPE_%s' % fingerName[1:].upper()))[0]
+                    getattr(self, fingerName).importFinger(finger)
 
-            if not there_is_left_hand:
-                self.left_hand=False
+        # Get the hand's sphere radius and palm position
+        # print "Hand sphere radius: %f mm, palm position: %s" % (self.hand.sphere_radius, hand.palm_position)
 
-            if not there_is_right_hand and not there_is_left_hand:
-                self.hand=False
-            else:
-                self.hand=frame.hands[0]
-
-            if self.hand is not False:
-                fingers = self.hand.fingers
-                # Check if the hand has any fingers
-                if not fingers.is_empty:
-                    for fingerName in self.fingerNames:
-                        #finger = fingers.finger_type(Leap.Finger.TYPE_THUMB)[0]
-                        #self.thumb.importFinger(finger)
-                        finger = fingers.finger_type(getattr(Leap.Finger, 'TYPE_%s' % fingerName.upper()))[0]
-                        getattr(self, fingerName).importFinger(finger)
-
-            if self.left_hand is not False:
-                fingers = self.left_hand.fingers
-                if not fingers.is_empty:
-                    for fingerName in self.lfingerNames:
-                        #finger = fingers.finger_type(Leap.Finger.TYPE_THUMB)[0]
-                        #self.thumb.importFinger(finger)
-                        finger = fingers.finger_type(getattr(Leap.Finger, 'TYPE_%s' % fingerName[1:].upper()))[0]
-                        getattr(self, fingerName).importFinger(finger)
-
-            if self.right_hand is not False:
-                fingers = self.right_hand.fingers
-                if not fingers.is_empty:
-                    for fingerName in self.rfingerNames:
-                        # finger = fingers.finger_type(Leap.Finger.TYPE_THUMB)[0]
-                        # self.thumb.importFinger(finger)
-                        finger = fingers.finger_type(getattr(Leap.Finger, 'TYPE_%s' % fingerName[1:].upper()))[0]
-                        getattr(self, fingerName).importFinger(finger)
-
-            # Get the hand's sphere radius and palm position
-            # print "Hand sphere radius: %f mm, palm position: %s" % (self.hand.sphere_radius, hand.palm_position)
-
-            # Get the hand's normal vector and direction
+        # Get the hand's normal vector and direction
+        if self.hand is not False:
             normal = self.hand.palm_normal
             direction = self.hand.direction
             pos = self.hand.palm_position
@@ -195,84 +187,84 @@ class LeapInterface(Leap.Listener):
             self.hand_yaw          = normal.yaw * Leap.RAD_TO_DEG
             self.hand_roll         = direction.roll * Leap.RAD_TO_DEG
 
-            if self.left_hand is not False:
-                lnormal = self.left_hand.palm_normal
-                ldirection = self.left_hand.direction
-                lpos = self.left_hand.palm_position
+        if self.left_hand is not False:
+            lnormal = self.left_hand.palm_normal
+            ldirection = self.left_hand.direction
+            lpos = self.left_hand.palm_position
 
-                self.lhand_direction[0] = ldirection.x
-                self.lhand_direction[1] = ldirection.y
-                self.lhand_direction[2] = ldirection.z
-                self.lhand_normal[0]    = lnormal.x
-                self.lhand_normal[1]    = lnormal.y
-                self.lhand_normal[2]    = lnormal.z
-                self.lhand_palm_pos[0]  = lpos.x
-                self.lhand_palm_pos[1]  = lpos.y
-                self.lhand_palm_pos[2]  = lpos.z
-                self.lhand_pitch        = ldirection.pitch * Leap.RAD_TO_DEG
-                self.lhand_yaw          = lnormal.yaw * Leap.RAD_TO_DEG
-                self.lhand_roll         = ldirection.roll * Leap.RAD_TO_DEG
+            self.lhand_direction[0] = ldirection.x
+            self.lhand_direction[1] = ldirection.y
+            self.lhand_direction[2] = ldirection.z
+            self.lhand_normal[0]    = lnormal.x
+            self.lhand_normal[1]    = lnormal.y
+            self.lhand_normal[2]    = lnormal.z
+            self.lhand_palm_pos[0]  = lpos.x
+            self.lhand_palm_pos[1]  = lpos.y
+            self.lhand_palm_pos[2]  = lpos.z
+            self.lhand_pitch        = ldirection.pitch * Leap.RAD_TO_DEG
+            self.lhand_yaw          = lnormal.yaw * Leap.RAD_TO_DEG
+            self.lhand_roll         = ldirection.roll * Leap.RAD_TO_DEG
 
-            if self.right_hand is not False:
-                rnormal = self.right_hand.palm_normal
-                rdirection = self.right_hand.direction
-                rpos = self.right_hand.palm_position
+        if self.right_hand is not False:
+            rnormal = self.right_hand.palm_normal
+            rdirection = self.right_hand.direction
+            rpos = self.right_hand.palm_position
 
-                self.rhand_direction[0] = rdirection.x
-                self.rhand_direction[1] = rdirection.y
-                self.rhand_direction[2] = rdirection.z
-                self.rhand_normal[0]    = rnormal.x
-                self.rhand_normal[1]    = rnormal.y
-                self.rhand_normal[2]    = rnormal.z
-                self.rhand_palm_pos[0]  = rpos.x
-                self.rhand_palm_pos[1]  = rpos.y
-                self.rhand_palm_pos[2]  = rpos.z
-                self.rhand_pitch        = rdirection.pitch * Leap.RAD_TO_DEG
-                self.rhand_yaw          = rnormal.yaw * Leap.RAD_TO_DEG
-                self.rhand_roll         = rdirection.roll * Leap.RAD_TO_DEG
+            self.rhand_direction[0] = rdirection.x
+            self.rhand_direction[1] = rdirection.y
+            self.rhand_direction[2] = rdirection.z
+            self.rhand_normal[0]    = rnormal.x
+            self.rhand_normal[1]    = rnormal.y
+            self.rhand_normal[2]    = rnormal.z
+            self.rhand_palm_pos[0]  = rpos.x
+            self.rhand_palm_pos[1]  = rpos.y
+            self.rhand_palm_pos[2]  = rpos.z
+            self.rhand_pitch        = rdirection.pitch * Leap.RAD_TO_DEG
+            self.rhand_yaw          = rnormal.yaw * Leap.RAD_TO_DEG
+            self.rhand_roll         = rdirection.roll * Leap.RAD_TO_DEG
 
-            # Calculate the hand's pitch, roll, and yaw angles
-            print "Hand pitch: %f degrees, roll: %f degrees, yaw: %f degrees" % (self.hand_pitch, self.hand_roll, self.hand_yaw)
+        # Calculate the hand's pitch, roll, and yaw angles
+        print "Hand pitch: %f degrees, roll: %f degrees, yaw: %f degrees" % (self.hand_pitch, self.hand_roll, self.hand_yaw)
 
-            '''
-            # Gestures
-            for gesture in frame.gestures():
-                if gesture.type == Leap.Gesture.TYPE_CIRCLE:
-                    circle = CircleGesture(gesture)
+        '''
+        # Gestures
+        for gesture in frame.gestures():
+            if gesture.type == Leap.Gesture.TYPE_CIRCLE:
+                circle = CircleGesture(gesture)
 
-                    # Determine clock direction using the angle between the pointable and the circle normal
-                    if circle.pointable.direction.angle_to(circle.normal) <= Leap.PI/4:
-                        clockwiseness = "clockwise"
-                    else:
-                        clockwiseness = "counterclockwise"
+                # Determine clock direction using the angle between the pointable and the circle normal
+                if circle.pointable.direction.angle_to(circle.normal) <= Leap.PI/4:
+                    clockwiseness = "clockwise"
+                else:
+                    clockwiseness = "counterclockwise"
 
-                    # Calculate the angle swept since the last frame
-                    swept_angle = 0
-                    if circle.state != Leap.Gesture.STATE_START:
-                        previous_update = CircleGesture(controller.frame(1).gesture(circle.id))
-                        swept_angle =  (circle.progress - previous_update.progress) * 2 * Leap.PI
+                # Calculate the angle swept since the last frame
+                swept_angle = 0
+                if circle.state != Leap.Gesture.STATE_START:
+                    previous_update = CircleGesture(controller.frame(1).gesture(circle.id))
+                    swept_angle =  (circle.progress - previous_update.progress) * 2 * Leap.PI
 
-                    print "Circle id: %d, %s, progress: %f, radius: %f, angle: %f degrees, %s" % (
-                            gesture.id, self.state_string(gesture.state),
-                            circle.progress, circle.radius, swept_angle * Leap.RAD_TO_DEG, clockwiseness)
+                print "Circle id: %d, %s, progress: %f, radius: %f, angle: %f degrees, %s" % (
+                        gesture.id, self.state_string(gesture.state),
+                        circle.progress, circle.radius, swept_angle * Leap.RAD_TO_DEG, clockwiseness)
 
-                if gesture.type == Leap.Gesture.TYPE_SWIPE:
-                    swipe = SwipeGesture(gesture)
-                    print "Swipe id: %d, state: %s, position: %s, direction: %s, speed: %f" % (
-                            gesture.id, self.state_string(gesture.state),
-                            swipe.position, swipe.direction, swipe.speed)
+            if gesture.type == Leap.Gesture.TYPE_SWIPE:
+                swipe = SwipeGesture(gesture)
+                print "Swipe id: %d, state: %s, position: %s, direction: %s, speed: %f" % (
+                        gesture.id, self.state_string(gesture.state),
+                        swipe.position, swipe.direction, swipe.speed)
 
-                if gesture.type == Leap.Gesture.TYPE_KEY_TAP:
-                    keytap = KeyTapGesture(gesture)
-                    print "Key Tap id: %d, %s, position: %s, direction: %s" % (
-                            gesture.id, self.state_string(gesture.state),
-                            keytap.position, keytap.direction )
+            if gesture.type == Leap.Gesture.TYPE_KEY_TAP:
+                keytap = KeyTapGesture(gesture)
+                print "Key Tap id: %d, %s, position: %s, direction: %s" % (
+                        gesture.id, self.state_string(gesture.state),
+                        keytap.position, keytap.direction )
 
-                if gesture.type == Leap.Gesture.TYPE_SCREEN_TAP:
-                    screentap = ScreenTapGesture(gesture)
-                    print "Screen Tap id: %d, %s, position: %s, direction: %s" % (
-                            gesture.id, self.state_string(gesture.state),
-                            screentap.position, screentap.direction )
+            if gesture.type == Leap.Gesture.TYPE_SCREEN_TAP:
+                screentap = ScreenTapGesture(gesture)
+                print "Screen Tap id: %d, %s, position: %s, direction: %s" % (
+                        gesture.id, self.state_string(gesture.state),
+                        screentap.position, screentap.direction )
 
         if not (frame.hands.empty and frame.gestures().empty):
             print ""

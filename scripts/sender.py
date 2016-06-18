@@ -23,17 +23,17 @@ def sender():
     li.setDaemon(True)
     li.start()
     # pub     = rospy.Publisher('leapmotion/raw',leap)
+    rospy.init_node(NODENAME)
     pub_ros   = rospy.Publisher('leapmotion/data',leapros,queue_size=1)
     lpub_ros   = rospy.Publisher('leapmotion/left',leapros,queue_size=1)
     rpub_ros   = rospy.Publisher('leapmotion/right',leapros,queue_size=1)
-    rospy.init_node(NODENAME)
 
     while not rospy.is_shutdown():
 
         hand_visible = li.get_hand_visible()
         lhand_visible = li.get_left_hand_visible()
         rhand_visible = li.get_right_hand_visible()
-        rospy.logwarn("Hand {} Left {} Right {}".format(hand_visible,lhand_visible,rhand_visible))
+        # rospy.logwarn("Hand {} Left {} Right {}".format(hand_visible,lhand_visible,rhand_visible))
         if hand_visible is True:
             hand_direction_   = li.get_hand_direction()
             hand_normal_      = li.get_hand_normal()
